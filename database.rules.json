@@ -1,0 +1,54 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "usersByEmail": {
+      "$emailKey": {
+        ".read": "auth != null",
+        ".write": "auth != null && newData.val() === auth.uid"
+      }
+    },
+    "pendingInvites": {
+      ".read": false,
+      ".write": false
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$notifId": {
+          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && root.child('projects').child(newData.child('projectId').val()).child('memberIds').child(auth.uid).val() === true && newData.child('toUserId').val() === $uid))"
+        }
+      }
+    },
+    "userProjects": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$projectId": {
+          ".write": "auth != null && (auth.uid == $uid || root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true)"
+        }
+      }
+    },
+    "projects": {
+      "$projectId": {
+        ".read": "auth != null && data.child('memberIds').child(auth.uid).val() === true",
+        ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid && newData.child('memberIds').child(auth.uid).val() === true : data.child('memberIds').child(auth.uid).val() === true)",
+        "sections": {
+          "$sectionId": {
+            ".read": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true",
+            ".write": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true"
+          }
+        },
+        "tasks": {
+          "$taskId": {
+            ".read": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true",
+            ".write": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true"
+          }
+        }
+      }
+    }
+  }
+}
