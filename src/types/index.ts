@@ -9,6 +9,8 @@ export type ProjectColor =
   | "red"
   | "yellow";
 
+export type ProjectCategory = "technology" | "marketing";
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -19,6 +21,7 @@ export interface UserProfile {
 export interface Project {
   id: string;
   name: string;
+  category: ProjectCategory;
   color: ProjectColor;
   ownerId: string;
   memberIds: string[];
@@ -42,7 +45,10 @@ export interface Task {
   assigneeId: string | null;
   assigneeName: string | null;
   assigneeEmail: string | null;
-  dueDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** @deprecated Legacy field — migrated to endDate on read */
+  dueDate?: string | null;
   order: number;
   createdAt: number;
   createdBy: string;
@@ -54,9 +60,29 @@ export interface AssigneeOption {
   email: string;
 }
 
+export type MyTasksSectionKind = "project" | "custom";
+
+export type MyTasksProjectSlot = "todo" | "doing" | "done";
+
+export interface MyTasksSection {
+  id: string;
+  name: string;
+  order: number;
+  kind: MyTasksSectionKind;
+  /** Matches project board columns (To do / Doing / Done). */
+  projectSlot?: MyTasksProjectSlot;
+}
+
+export interface MyTaskPlacement {
+  sectionId: string;
+  order: number;
+}
+
+export type NotificationType = "task_assigned" | "task_priority";
+
 export interface AppNotification {
   id: string;
-  type: "task_assigned";
+  type: NotificationType;
   toUserId: string;
   fromUserId: string;
   fromUserName: string;
@@ -64,6 +90,8 @@ export interface AppNotification {
   projectName: string;
   taskId: string;
   taskTitle: string;
+  /** Set when type is task_priority */
+  priorityLevel?: "high" | "urgent";
   read: boolean;
   createdAt: number;
 }

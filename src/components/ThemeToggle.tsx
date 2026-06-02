@@ -1,4 +1,6 @@
+import { IconMoon, IconSun } from "@tabler/icons-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 
 interface ThemeToggleProps {
   className?: string;
@@ -19,7 +21,11 @@ export function ThemeToggle({ className = "", showLabel = true }: ThemeTogglePro
     >
       <span className="theme-toggle-track" aria-hidden>
         <span className={`theme-toggle-thumb ${isDark ? "theme-toggle-thumb--dark" : ""}`}>
-          {isDark ? "☾" : "☀"}
+          {isDark ? (
+            <IconMoon size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
+          ) : (
+            <IconSun size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
+          )}
         </span>
       </span>
       {showLabel && <span className="theme-toggle-label">{isDark ? "Dark" : "Light"}</span>}

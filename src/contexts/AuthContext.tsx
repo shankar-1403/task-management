@@ -39,7 +39,7 @@ async function syncProfile(firebaseUser: User): Promise<UserProfile> {
     photoURL: firebaseUser.photoURL ?? undefined,
   };
   await upsertUserProfile(profile);
-  await acceptPendingInvites();
+  await acceptPendingInvites(profile);
   return profile;
 }
 

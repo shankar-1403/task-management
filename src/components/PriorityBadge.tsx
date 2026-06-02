@@ -1,25 +1,22 @@
-import {
-  formatDueDateLabel,
-  getPriorityLabel,
-  getTaskPriority,
-  type TaskPriority,
-} from "@/utils/priority";
+import { getPriorityLabel, getTaskPriority, type TaskPriority } from "@/utils/priority";
+import { formatDateRangeLabel, getTaskEndDate } from "@/utils/taskDates";
 import type { Task } from "@/types";
 
 interface PriorityBadgeProps {
-  task: Pick<Task, "dueDate" | "completed">;
-  showDueLabel?: boolean;
+  task: Pick<Task, "startDate" | "endDate" | "dueDate" | "completed">;
+  showDateLabel?: boolean;
 }
 
-export function PriorityBadge({ task, showDueLabel = true }: PriorityBadgeProps) {
+export function PriorityBadge({ task, showDateLabel = true }: PriorityBadgeProps) {
   const priority = getTaskPriority(task);
-  if (priority === "none" && !task.dueDate) return null;
+  const endDate = getTaskEndDate(task);
+  if (priority === "none" && !endDate && !task.startDate) return null;
 
   return (
     <span className={`priority-badge priority-badge--${priority}`}>
       <span className="priority-badge-level">{getPriorityLabel(priority)}</span>
-      {showDueLabel && task.dueDate && (
-        <span className="priority-badge-due">{formatDueDateLabel(task.dueDate)}</span>
+      {showDateLabel && (endDate || task.startDate) && (
+        <span className="priority-badge-due">{formatDateRangeLabel(task)}</span>
       )}
     </span>
   );

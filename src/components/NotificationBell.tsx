@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { IconBell } from "@tabler/icons-react";
 import type { AppNotification } from "@/types";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import {
   markAllNotificationsRead,
   markNotificationRead,
@@ -16,11 +18,17 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
-    return subscribeNotifications(user.uid, setNotifications);
+    setLoadError(null);
+    return subscribeNotifications(
+      user.uid,
+      setNotifications,
+      () => setLoadError("Could not load notifications. Check database rules."),
+    );
   }, [user]);
 
   useEffect(() => {
@@ -34,11 +42,11 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => n.read !== true).length;
 
   async function handleNotificationClick(notification: AppNotification) {
     if (!user) return;
-    if (!notification.read) {
+    if (notification.read !== true) {
       await markNotificationRead(user.uid, notification.id);
     }
     setOpen(false);
@@ -46,7 +54,7 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
   }
 
   async function handleMarkAllRead() {
-    if (!user || unreadCount === 0) return;
+    if (!user || notifications.length === 0) return;
     await markAllNotificationsRead(user.uid);
   }
 
@@ -59,9 +67,12 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
         aria-label={`Inbox${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
         aria-expanded={open}
       >
-        <span className="notification-bell-icon" aria-hidden>
-          🔔
-        </span>
+        <IconBell
+          size={ICON_SIZE.md}
+          stroke={ICON_STROKE}
+          className="app-icon app-icon--md notification-bell-icon"
+          aria-hidden
+        />
         <span>Inbox</span>
         {unreadCount > 0 && (
           <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
@@ -72,28 +83,39 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
         <div className="notification-panel">
           <div className="notification-panel-header">
             <h3>Inbox</h3>
-            {unreadCount > 0 && (
+            {notifications.length > 0 && (
               <button type="button" className="btn btn-ghost notification-mark-all" onClick={() => void handleMarkAllRead()}>
                 Mark all read
               </button>
             )}
           </div>
           <div className="notification-list">
-            {notifications.length === 0 ? (
+            {loadError ? (
+              <p className="notification-empty notification-empty--error">{loadError}</p>
+            ) : notifications.length === 0 ? (
               <p className="notification-empty">Your inbox is empty.</p>
             ) : (
               notifications.map((n) => (
                 <button
                   key={n.id}
                   type="button"
-                  className={`notification-item ${n.read ? "" : "notification-item--unread"}`}
+                  className={`notification-item ${n.read === true ? "" : "notification-item--unread"}`}
                   onClick={() => void handleNotificationClick(n)}
                 >
                   <span className="notification-item-title">
-                    {n.fromUserName} assigned you a task
+                    {n.type === "task_priority"
+                      ? n.priorityLevel === "urgent"
+                        ? "Overdue task needs attention"
+                        : "High priority task"
+                      : n.taskId === "project-invite"
+                        ? `${n.fromUserName} added you to a project`
+                        : `${n.fromUserName} assigned you a task`}
                   </span>
                   <span className="notification-item-body">
                     <strong>{n.taskTitle}</strong> in {n.projectName}
+                    {n.type === "task_priority" && n.fromUserName
+                      ? ` · updated by ${n.fromUserName}`
+                      : ""}
                   </span>
                   <span className="notification-item-time">{formatTimeAgo(n.createdAt)}</span>
                 </button>

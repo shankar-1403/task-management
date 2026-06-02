@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
+import { IconUserPlus } from "@tabler/icons-react";
 import type { AssigneeOption, Project, Section, Task } from "@/types";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import {
   getProjectMembers,
-  notifyIfNewAssignee,
+  notifyTaskAssignment,
+  notifyTaskHighPriority,
+  removeLegacyProjectSections,
   subscribeSections,
   subscribeTasks,
   updateTask,
@@ -37,6 +41,10 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
   }, [project.id]);
 
   useEffect(() => {
+    void removeLegacyProjectSections(project.id);
+  }, [project.id]);
+
+  useEffect(() => {
     void getProjectMembers(project.id).then((members) =>
       setAssignees(
         members.map((m) => ({
@@ -56,9 +64,44 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
 
   async function handleUpdateTask(taskId: string, patch: Partial<Task>) {
     const previous = tasks.find((t) => t.id === taskId);
+    if (!previous) {
+      await updateTask(project.id, taskId, patch);
+      return;
+    }
+
+    const assigneeChanged = "assigneeId" in patch;
+    const datesChanged = "endDate" in patch || "startDate" in patch;
+
     await updateTask(project.id, taskId, patch);
-    if (user && "assigneeId" in patch) {
-      await notifyIfNewAssignee(patch, previous, user, project, taskId);
+
+    if (!user) return;
+
+    if (assigneeChanged) {
+      const result = await notifyTaskAssignment({
+        taskId,
+        taskTitle: patch.title ?? previous.title,
+        assigneeId: patch.assigneeId ?? null,
+        previousAssigneeId: previous.assigneeId ?? null,
+        actor: user,
+        project,
+        previous,
+        patch,
+      });
+      if (result.error) {
+        console.warn("Assignment saved but inbox notification failed:", result.error);
+      }
+    }
+
+    if (datesChanged) {
+      const priorityResult = await notifyTaskHighPriority({
+        previous,
+        patch,
+        actor: user,
+        project,
+      });
+      if (priorityResult.error) {
+        console.warn("Priority inbox notification failed:", priorityResult.error);
+      }
     }
   }
 
@@ -92,7 +135,8 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
           <h1 className="project-title">{project.name}</h1>
         </div>
         <div className="project-toolbar">
-          <button type="button" className="btn" onClick={() => setShowInvite(true)}>
+          <button type="button" className="btn btn-with-icon" onClick={() => setShowInvite(true)}>
+            <IconUserPlus size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
             Share / Invite
           </button>
         </div>
@@ -141,7 +185,11 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
       {showInvite && (
         <InviteMemberModal
           onClose={() => setShowInvite(false)}
-          onInvite={(email) => sendProjectInvite(project.id, email)}
+          onInvite={(email) =>
+            user
+              ? sendProjectInvite(project, email, user)
+              : Promise.resolve({ ok: false, message: "Not signed in." })
+          }
         />
       )}
     </>

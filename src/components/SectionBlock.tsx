@@ -1,11 +1,14 @@
 import { useState, type DragEvent } from "react";
+import { IconCheck, IconPlus } from "@tabler/icons-react";
 import type { AssigneeOption, Section, Task } from "@/types";
-import { initials, isOverdue } from "@/utils/avatar";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
+import { initials } from "@/utils/avatar";
 import { getTaskDragId, setTaskDragData } from "@/utils/moveTask";
 import { getTaskPriority } from "@/utils/priority";
 import { createTask } from "@/services/database";
 import { useAuth } from "@/contexts/AuthContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { TaskDateFields } from "@/components/TaskDateFields";
 
 interface SectionBlockProps {
   section: Section;
@@ -53,7 +56,8 @@ export function SectionBlock({
 }: SectionBlockProps) {
   const { user } = useAuth();
   const [newTitle, setNewTitle] = useState("");
-  const [newDueDate, setNewDueDate] = useState("");
+  const [newStartDate, setNewStartDate] = useState("");
+  const [newEndDate, setNewEndDate] = useState("");
   const [adding, setAdding] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -70,12 +74,14 @@ export function SectionBlock({
         assigneeId: null,
         assigneeName: null,
         assigneeEmail: null,
-        dueDate: newDueDate || null,
+        startDate: newStartDate || null,
+        endDate: newEndDate || null,
         order: tasks.length,
         createdBy: user.uid,
       });
       setNewTitle("");
-      setNewDueDate("");
+      setNewStartDate("");
+      setNewEndDate("");
     } finally {
       setAdding(false);
     }
@@ -138,7 +144,11 @@ export function SectionBlock({
                     className={`task-checkbox ${task.completed ? "checked" : ""}`}
                     onClick={() => onToggleComplete(task.id, !task.completed)}
                     aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
-                  />
+                  >
+                    {task.completed && (
+                      <IconCheck size={12} stroke={2.5} className="app-icon" aria-hidden />
+                    )}
+                  </button>
                   <button
                     type="button"
                     className="task-title-btn"
@@ -148,18 +158,14 @@ export function SectionBlock({
                   </button>
                 </div>
                 <div className="task-card-meta">
-                  <div className="task-card-due-row">
-                    <label className="task-card-due-label">Due</label>
-                    <input
-                      type="date"
-                      className={`task-card-date ${isOverdue(task.dueDate, task.completed) ? "overdue" : ""}`}
-                      value={task.dueDate ?? ""}
-                      onChange={(e) =>
-                        void onUpdateTask(task.id, { dueDate: e.target.value || null })
-                      }
-                      aria-label="Due date"
-                    />
-                  </div>
+                  <TaskDateFields
+                    startDate={task.startDate}
+                    endDate={task.endDate}
+                    completed={task.completed}
+                    layout="row"
+                    size="compact"
+                    onChange={(patch) => void onUpdateTask(task.id, patch)}
+                  />
                   <select
                     className="task-card-select"
                     value={task.assigneeId ?? ""}
@@ -210,14 +216,25 @@ export function SectionBlock({
             }}
             disabled={adding}
           />
-          <input
-            type="date"
-            className="board-add-task-date"
-            value={newDueDate}
-            onChange={(e) => setNewDueDate(e.target.value)}
-            title="Due date (optional)"
-            aria-label="Due date for new task"
+          <TaskDateFields
+            startDate={newStartDate || null}
+            endDate={newEndDate || null}
+            layout="row"
+            size="compact"
+            onChange={(patch) => {
+              if (patch.startDate !== undefined) setNewStartDate(patch.startDate ?? "");
+              if (patch.endDate !== undefined) setNewEndDate(patch.endDate ?? "");
+            }}
           />
+          <button
+            type="button"
+            className="btn btn-primary btn-with-icon board-add-task-btn"
+            onClick={() => void handleAddTask()}
+            disabled={adding || !newTitle.trim()}
+          >
+            <IconPlus size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
+            {adding ? "Adding…" : "Add"}
+          </button>
         </div>
       </div>
     </section>

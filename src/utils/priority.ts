@@ -1,4 +1,5 @@
 import type { Task } from "@/types";
+import { getTaskEndDate, type TaskForPriority } from "@/utils/taskDates";
 
 export type TaskPriority = "urgent" | "high" | "medium" | "low" | "none";
 
@@ -15,7 +16,7 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   high: "High",
   medium: "Medium",
   low: "Low",
-  none: "No date",
+  none: "No end date",
 };
 
 function startOfDay(date: Date): Date {
@@ -24,12 +25,13 @@ function startOfDay(date: Date): Date {
   return d;
 }
 
-export function getTaskPriority(task: Pick<Task, "dueDate" | "completed">): TaskPriority {
-  if (task.completed || !task.dueDate) return "none";
+export function getTaskPriority(task: TaskForPriority): TaskPriority {
+  const endDate = getTaskEndDate(task);
+  if (task.completed || !endDate) return "none";
 
   const today = startOfDay(new Date());
-  const due = startOfDay(new Date(`${task.dueDate}T00:00:00`));
-  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const end = startOfDay(new Date(`${endDate}T00:00:00`));
+  const diffDays = Math.round((end.getTime() - today.getTime()) / 86_400_000);
 
   if (diffDays < 0) return "urgent";
   if (diffDays === 0) return "high";
@@ -45,17 +47,29 @@ export function getPriorityRank(priority: TaskPriority): number {
   return PRIORITY_RANK[priority];
 }
 
-export function formatDueDateLabel(dueDate: string | null): string {
-  if (!dueDate) return "No due date";
+export function isHighOrUrgentPriority(priority: TaskPriority): boolean {
+  return priority === "high" || priority === "urgent";
+}
+
+/** True when priority newly becomes high or urgent (e.g. end date is today or overdue). */
+export function escalatedToHighOrUrgent(
+  previous: TaskPriority,
+  next: TaskPriority,
+): boolean {
+  return isHighOrUrgentPriority(next) && !isHighOrUrgentPriority(previous);
+}
+
+export function formatEndDateLabel(endDate: string | null): string {
+  if (!endDate) return "No end date";
   const today = startOfDay(new Date());
-  const due = startOfDay(new Date(`${dueDate}T00:00:00`));
-  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const end = startOfDay(new Date(`${endDate}T00:00:00`));
+  const diffDays = Math.round((end.getTime() - today.getTime()) / 86_400_000);
 
   if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-  if (diffDays === 0) return "Due today";
-  if (diffDays === 1) return "Due tomorrow";
-  if (diffDays <= 7) return `Due in ${diffDays}d`;
-  return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (diffDays === 0) return "Ends today";
+  if (diffDays === 1) return "Ends tomorrow";
+  if (diffDays <= 7) return `Ends in ${diffDays}d`;
+  return end.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export function compareTasksByPriority(a: Task, b: Task): number {
@@ -65,9 +79,11 @@ export function compareTasksByPriority(a: Task, b: Task): number {
     getPriorityRank(getTaskPriority(a)) - getPriorityRank(getTaskPriority(b));
   if (priorityDiff !== 0) return priorityDiff;
 
-  if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-  if (a.dueDate) return -1;
-  if (b.dueDate) return 1;
+  const endA = getTaskEndDate(a);
+  const endB = getTaskEndDate(b);
+  if (endA && endB) return endA.localeCompare(endB);
+  if (endA) return -1;
+  if (endB) return 1;
 
   return a.order - b.order;
 }

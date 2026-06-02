@@ -13,39 +13,55 @@
       }
     },
     "pendingInvites": {
-      ".read": false,
-      ".write": false
+      "$emailKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('emailKey').val() === $emailKey",
+        "$projectId": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('emailKey').val() === $emailKey",
+          ".write": "auth != null && (root.child('userProjects').child(auth.uid).child($projectId).val() === true || root.child('users').child(auth.uid).child('emailKey').val() === $emailKey)"
+        }
+      }
     },
     "notifications": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         "$notifId": {
-          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && root.child('projects').child(newData.child('projectId').val()).child('memberIds').child(auth.uid).val() === true && newData.child('toUserId').val() === $uid))"
+          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && newData.child('fromUserId').val() === auth.uid && newData.child('toUserId').val() === $uid && (newData.child('type').val() === 'task_assigned' || newData.child('type').val() === 'task_priority')))"
         }
+      }
+    },
+    "myTasksLayout": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
       }
     },
     "userProjects": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         "$projectId": {
-          ".write": "auth != null && (auth.uid == $uid || root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true)"
+          ".write": "auth != null && (auth.uid == $uid || root.child('userProjects').child(auth.uid).child($projectId).val() === true)"
         }
       }
     },
     "projects": {
       "$projectId": {
-        ".read": "auth != null && data.child('memberIds').child(auth.uid).val() === true",
-        ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid && newData.child('memberIds').child(auth.uid).val() === true : data.child('memberIds').child(auth.uid).val() === true)",
+        ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
+        ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : root.child('userProjects').child(auth.uid).child($projectId).val() === true)",
+        "memberIds": {
+          "$memberUid": {
+            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
+          }
+        },
         "sections": {
           "$sectionId": {
-            ".read": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true",
-            ".write": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true"
+            ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
+            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
           }
         },
         "tasks": {
           "$taskId": {
-            ".read": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true",
-            ".write": "auth != null && root.child('projects').child($projectId).child('memberIds').child(auth.uid).val() === true"
+            ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
+            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
           }
         }
       }

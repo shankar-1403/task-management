@@ -1,8 +1,10 @@
 import { FormEvent, useState } from "react";
+import { IconMail } from "@tabler/icons-react";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 
 interface InviteMemberModalProps {
   onClose: () => void;
-  onInvite: (email: string) => Promise<{ ok: boolean; message: string }>;
+  onInvite: (email: string) => Promise<{ ok: boolean; message: string; emailSent?: boolean }>;
 }
 
 export function InviteMemberModal({ onClose, onInvite }: InviteMemberModalProps) {
@@ -13,24 +15,36 @@ export function InviteMemberModal({ onClose, onInvite }: InviteMemberModalProps)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || saving) return;
     setSaving(true);
-    const result = await onInvite(email.trim());
-    setMessage(result.message);
-    setIsError(!result.ok);
-    setSaving(false);
-    if (result.ok) {
-      setEmail("");
-      setTimeout(onClose, 800);
+    try {
+      const result = await onInvite(email.trim());
+      setMessage(result.message);
+      setIsError(!result.ok);
+      // Only auto-close when email actually goes out. Partial success should stay visible.
+      if (result.ok && result.emailSent !== false) {
+        setEmail("");
+        setTimeout(onClose, 800);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send invite.";
+      setMessage(msg);
+      setIsError(true);
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Invite teammate</h2>
+        <h2 className="modal-title-with-icon">
+          <IconMail size={ICON_SIZE.lg} stroke={ICON_STROKE} className="app-icon app-icon--lg" />
+          Invite teammate
+        </h2>
         <p style={{ margin: "0 0 16px", color: "var(--asana-text-muted)", fontSize: 13 }}>
-          An invitation email will be sent. New users can sign up from the link in the email.
+          Send a project invite email. If delivery fails, the invite is still saved and the full error is shown
+          here so you can fix EmailJS settings.
         </p>
         <form onSubmit={handleSubmit}>
           <label className="detail-label" htmlFor="invite-email">

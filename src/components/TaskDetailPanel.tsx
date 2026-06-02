@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { IconTrash, IconX } from "@tabler/icons-react";
 import type { AssigneeOption, Task } from "@/types";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { TaskDateFields } from "@/components/TaskDateFields";
 
 interface TaskDetailPanelProps {
   task: Task;
@@ -51,8 +54,8 @@ export function TaskDetailPanel({
             onChange={(e) => setTitle(e.target.value)}
             onBlur={saveTitle}
           />
-          <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="Close">
-            ✕
+          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
+            <IconX size={ICON_SIZE.md} stroke={ICON_STROKE} className="app-icon app-icon--md" />
           </button>
         </header>
         <div className="detail-body">
@@ -81,17 +84,18 @@ export function TaskDetailPanel({
           </div>
 
           <div className="detail-field">
-            <span className="detail-label">Due date & priority</span>
-            <input
-              type="date"
-              className="detail-input"
-              value={task.dueDate ?? ""}
-              onChange={(e) => void onUpdate({ dueDate: e.target.value || null })}
+            <span className="detail-label">Schedule & priority</span>
+            <TaskDateFields
+              startDate={task.startDate}
+              endDate={task.endDate}
+              completed={task.completed}
+              layout="stack"
+              onChange={(patch) => void onUpdate(patch)}
             />
             <div className="detail-priority-preview">
               <PriorityBadge task={task} />
               <span className="detail-priority-hint">
-                Priority is set automatically from the due date (urgent → low).
+                Priority is based on the end date (urgent → low).
               </span>
             </div>
           </div>
@@ -109,10 +113,10 @@ export function TaskDetailPanel({
 
           <button
             type="button"
-            className="btn"
-            style={{ color: "var(--asana-accent)", borderColor: "var(--asana-accent)" }}
+            className="btn btn-with-icon btn-danger-outline"
             onClick={() => void onDelete()}
           >
+            <IconTrash size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
             Delete task
           </button>
         </div>

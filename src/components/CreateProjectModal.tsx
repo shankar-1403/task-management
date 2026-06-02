@@ -1,5 +1,7 @@
 import { FormEvent, useState } from "react";
-import type { ProjectColor } from "@/types";
+import { IconFolderPlus } from "@tabler/icons-react";
+import type { ProjectCategory, ProjectColor } from "@/types";
+import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 
 const COLORS: ProjectColor[] = [
   "aqua",
@@ -15,11 +17,12 @@ const COLORS: ProjectColor[] = [
 
 interface CreateProjectModalProps {
   onClose: () => void;
-  onCreate: (name: string, color: ProjectColor) => Promise<void>;
+  onCreate: (name: string, category: ProjectCategory, color: ProjectColor) => Promise<void>;
 }
 
 export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProps) {
   const [name, setName] = useState("");
+  const [category, setCategory] = useState<ProjectCategory>("technology");
   const [color, setColor] = useState<ProjectColor>("orange");
   const [saving, setSaving] = useState(false);
 
@@ -28,7 +31,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onCreate(name.trim(), color);
+      await onCreate(name.trim(), category, color);
       onClose();
     } finally {
       setSaving(false);
@@ -38,7 +41,10 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Create project</h2>
+        <h2 className="modal-title-with-icon">
+          <IconFolderPlus size={ICON_SIZE.lg} stroke={ICON_STROKE} className="app-icon app-icon--lg" />
+          Create project
+        </h2>
         <form onSubmit={handleSubmit}>
           <label className="detail-label" htmlFor="project-name">
             Project name
@@ -63,6 +69,19 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
               />
             ))}
           </div>
+          <label className="detail-label" htmlFor="project-category">
+            Category
+          </label>
+          <select
+            id="project-category"
+            className="detail-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ProjectCategory)}
+            style={{ marginBottom: 20 }}
+          >
+            <option value="technology">Technology</option>
+            <option value="marketing">Marketing</option>
+          </select>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button type="button" className="btn" onClick={onClose}>
               Cancel
