@@ -20,7 +20,7 @@ function isLegacySmartSection(section: { id: string; kind?: string }): boolean {
   return section.kind === "smart" || section.id.startsWith("smart_");
 }
 
-/** Ensures fixed To do / Doing / Done exist, removes legacy smart sections, normalizes custom order. */
+/** Ensures fixed To do / Ongoing / Done exist, removes legacy smart sections, normalizes custom order. */
 export async function ensureMyTasksSections(userId: string): Promise<void> {
   const sectionsRef = ref(db, `myTasksLayout/${userId}/sections`);
   const snap = await get(sectionsRef);
@@ -120,7 +120,7 @@ export async function addMyTasksSection(userId: string, name: string): Promise<s
 
 export async function deleteMyTasksSection(userId: string, sectionId: string): Promise<void> {
   if (isFixedMyTasksSection(sectionId)) {
-    throw new Error("To do, Doing, and Done cannot be removed.");
+    throw new Error("To do, Ongoing, and Done cannot be removed.");
   }
 
   await remove(ref(db, `myTasksLayout/${userId}/sections/${sectionId}`));
@@ -176,6 +176,7 @@ export async function createTaskInMySection(
     title: title.trim(),
     description: "",
     completed: mySectionId === PROJECT_MIRROR_IDS.DONE,
+    assigneeIds: [user.uid],
     assigneeId: user.uid,
     assigneeName: user.displayName,
     assigneeEmail: user.email,

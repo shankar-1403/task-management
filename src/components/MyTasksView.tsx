@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { IconLayoutList } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import type { MyTasksSection, Project, Section, Task } from "@/types";
 import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import { subscribeSections, subscribeTasks, updateTask } from "@/services/database";
@@ -17,6 +17,7 @@ import {
   groupTasksByMySection,
   visibleMyTasksSections,
 } from "@/utils/myTasksSections";
+import { taskIsAssignedTo } from "@/utils/taskAssignees";
 import { MyTasksSectionBlock } from "@/components/MyTasksSectionBlock";
 
 interface MyTasksViewProps {
@@ -30,6 +31,9 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
   const [mySections, setMySections] = useState<MyTasksSection[]>([]);
   const [placements, setPlacements] = useState<Record<string, { sectionId: string; order: number }>>(
     {},
+  );
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    DEFAULT_MY_TASKS_SECTIONS[0].id,
   );
   const [newSectionName, setNewSectionName] = useState("");
   const [addingSection, setAddingSection] = useState(false);
@@ -68,14 +72,10 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
 
   const myTasks = useMemo(() => {
     const combined = Object.values(tasksByProject).flat();
-    return combined.filter((t) => t.assigneeId === user?.uid);
+    return combined.filter((t) => user && taskIsAssignedTo(t, user.uid));
   }, [tasksByProject, user?.uid]);
 
   const displaySections = useMemo(() => visibleMyTasksSections(mySections), [mySections]);
-  const customSections = useMemo(
-    () => displaySections.filter((s) => s.kind === "custom"),
-    [displaySections],
-  );
 
   const tasksBySection = useMemo(
     () => groupTasksByMySection(myTasks, mySections, placements, sectionsByProject),
@@ -86,6 +86,18 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
     () => Object.fromEntries(projects.map((p) => [p.id, p])),
     [projects],
   );
+
+  const activeSection = useMemo(
+    () => displaySections.find((s) => s.id === activeSectionId) ?? displaySections[0],
+    [displaySections, activeSectionId],
+  );
+
+  useEffect(() => {
+    if (displaySections.length === 0) return;
+    if (!displaySections.some((s) => s.id === activeSectionId)) {
+      setActiveSectionId(displaySections[0].id);
+    }
+  }, [displaySections, activeSectionId]);
 
   async function handleToggleComplete(task: Task) {
     const projectTasks = tasksByProject[task.projectId] ?? [];
@@ -122,13 +134,30 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
     setAddingSection(true);
     setSectionError(null);
     try {
-      await addMyTasksSection(user.uid, name);
+      const sectionId = await addMyTasksSection(user.uid, name);
       setNewSectionName("");
+      setActiveSectionId(sectionId);
     } catch (err) {
       setSectionError(err instanceof Error ? err.message : "Could not add section.");
     } finally {
       setAddingSection(false);
     }
+  }
+
+  async function handleDeleteSection(sectionId: string) {
+    if (!user) return;
+    const section = displaySections.find((s) => s.id === sectionId);
+    if (!section) return;
+    const confirmed = window.confirm(`Delete section "${section.name}"? Tasks stay on their projects.`);
+    if (!confirmed) return;
+    await deleteMyTasksSection(user.uid, sectionId);
+    if (activeSectionId === sectionId) {
+      setActiveSectionId(DEFAULT_MY_TASKS_SECTIONS[0].id);
+    }
+  }
+
+  function openCount(sectionId: string): number {
+    return (tasksBySection.get(sectionId) ?? []).filter((t) => !t.completed).length;
   }
 
   return (
@@ -144,41 +173,57 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
           <div className="empty-state">Create a project first, then add tasks here.</div>
         ) : (
           <>
-            {DEFAULT_MY_TASKS_SECTIONS.map((section) => (
-              <MyTasksSectionBlock
-                key={section.id}
-                section={section}
-                tasks={tasksBySection.get(section.id) ?? []}
-                projects={projects}
-                projectById={projectById}
-                onToggleComplete={(task) => void handleToggleComplete(task)}
-                onAddTask={(projectId, title) => handleAddTask(section.id, projectId, title)}
-              />
-            ))}
+            <div className="my-tasks-tabs" role="tablist" aria-label="Task sections">
+              {displaySections.map((section) => {
+                const count = openCount(section.id);
+                const isActive = section.id === activeSection?.id;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    role="tab"
+                    id={`my-tasks-tab-${section.id}`}
+                    aria-selected={isActive}
+                    aria-controls={`my-tasks-panel-${section.id}`}
+                    className={`my-tasks-tab ${isActive ? "my-tasks-tab--active" : ""}`}
+                    onClick={() => setActiveSectionId(section.id)}
+                  >
+                    <span>{section.name}</span>
+                    {count > 0 && <span className="my-tasks-tab-badge">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
 
-            {customSections.length > 0 && (
-              <div className="my-tasks-custom-divider">
-                <span>Custom sections</span>
+            {activeSection && (
+              <div
+                className="my-tasks-tab-panel"
+                role="tabpanel"
+                id={`my-tasks-panel-${activeSection.id}`}
+                aria-labelledby={`my-tasks-tab-${activeSection.id}`}
+              >
+                <MyTasksSectionBlock
+                  section={activeSection}
+                  tasks={tasksBySection.get(activeSection.id) ?? []}
+                  projects={projects}
+                  projectById={projectById}
+                  onToggleComplete={(task) => void handleToggleComplete(task)}
+                  onAddTask={(projectId, title) =>
+                    handleAddTask(activeSection.id, projectId, title)
+                  }
+                  onDeleteSection={
+                    activeSection.kind === "custom" && user
+                      ? () => void handleDeleteSection(activeSection.id)
+                      : undefined
+                  }
+                />
               </div>
             )}
 
-            {customSections.map((section) => (
-              <MyTasksSectionBlock
-                key={section.id}
-                section={section}
-                tasks={tasksBySection.get(section.id) ?? []}
-                projects={projects}
-                projectById={projectById}
-                onToggleComplete={(task) => void handleToggleComplete(task)}
-                onAddTask={(projectId, title) => handleAddTask(section.id, projectId, title)}
-                onDeleteSection={
-                  user ? () => void deleteMyTasksSection(user.uid, section.id) : undefined
-                }
-              />
-            ))}
-
             <div className="my-tasks-add-section">
-              <p className="my-tasks-add-section-label">Add a custom section below To do, Doing, and Done</p>
+              <p className="my-tasks-add-section-label">
+                Add a custom section (appears as a new tab)
+              </p>
               <div className="my-tasks-add-section-row">
                 <input
                   className="my-tasks-add-section-input"
@@ -196,7 +241,7 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
                   onClick={() => void handleAddSection()}
                   disabled={addingSection || !newSectionName.trim()}
                 >
-                  <IconLayoutList
+                  <IconPlus
                     size={ICON_SIZE.sm}
                     stroke={ICON_STROKE}
                     className="app-icon app-icon--sm"
@@ -204,9 +249,7 @@ export function MyTasksView({ projects }: MyTasksViewProps) {
                   Add section
                 </button>
               </div>
-              {sectionError && (
-                <p className="my-tasks-add-section-error">{sectionError}</p>
-              )}
+              {sectionError && <p className="my-tasks-add-section-error">{sectionError}</p>}
             </div>
           </>
         )}
@@ -234,6 +277,6 @@ export function useMyTasksCount(projects: Project[], userId: string | undefined)
   return useMemo(() => {
     return Object.values(tasksByProject)
       .flat()
-      .filter((t) => t.assigneeId === userId && !t.completed).length;
+      .filter((t) => userId && taskIsAssignedTo(t, userId) && !t.completed).length;
   }, [tasksByProject, userId]);
 }

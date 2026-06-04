@@ -107,9 +107,7 @@ export function NotificationBell({ onOpenTaskAssignment }: NotificationBellProps
                       ? n.priorityLevel === "urgent"
                         ? "Overdue task needs attention"
                         : "High priority task"
-                      : n.taskId === "project-invite"
-                        ? `${n.fromUserName} added you to a project`
-                        : `${n.fromUserName} assigned you a task`}
+                      : `${n.fromUserName} assigned you a task`}
                   </span>
                   <span className="notification-item-body">
                     <strong>{n.taskTitle}</strong> in {n.projectName}

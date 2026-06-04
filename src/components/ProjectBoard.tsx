@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
-import { IconUserPlus } from "@tabler/icons-react";
 import type { AssigneeOption, Project, Section, Task } from "@/types";
-import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import {
-  getProjectMembers,
+  listAssignableUsers,
+  normalizeProjectBoardSections,
   notifyTaskAssignment,
   notifyTaskHighPriority,
-  removeLegacyProjectSections,
   subscribeSections,
   subscribeTasks,
   updateTask,
   deleteTask,
 } from "@/services/database";
+import { assigneeIdsChanged } from "@/utils/taskAssignees";
 import { useAuth } from "@/contexts/AuthContext";
 import { SectionBlock } from "@/components/SectionBlock";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
-import { InviteMemberModal } from "@/components/InviteMemberModal";
 import { moveTaskBetweenSections, setTaskCompletedInProject } from "@/utils/moveTask";
-import { sendProjectInvite } from "@/services/inviteApi";
 
 interface ProjectBoardProps {
   project: Project;
@@ -26,14 +23,29 @@ interface ProjectBoardProps {
 export function ProjectBoard({ project }: ProjectBoardProps) {
   const { user } = useAuth();
   const [sections, setSections] = useState<Section[]>([]);
+  const [sectionsReady, setSectionsReady] = useState(false);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
+  const [assigneesLoading, setAssigneesLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showInvite, setShowInvite] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
-    return subscribeSections(project.id, setSections);
+    setSectionsReady(false);
+    setSectionsError(null);
+    return subscribeSections(
+      project.id,
+      (data) => {
+        setSections(data);
+        setSectionsReady(true);
+      },
+      (err) => {
+        setSectionsReady(true);
+        setSectionsError(err.message);
+        setSections([]);
+      },
+    );
   }, [project.id]);
 
   useEffect(() => {
@@ -41,20 +53,36 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
   }, [project.id]);
 
   useEffect(() => {
-    void removeLegacyProjectSections(project.id);
+    void normalizeProjectBoardSections(project.id).catch((err) => {
+      setSectionsError(
+        err instanceof Error ? err.message : "Could not set up board sections.",
+      );
+    });
   }, [project.id]);
 
   useEffect(() => {
-    void getProjectMembers(project.id).then((members) =>
-      setAssignees(
-        members.map((m) => ({
-          uid: m.uid,
-          displayName: m.displayName,
-          email: m.email,
-        })),
-      ),
-    );
-  }, [project.id, project.memberIds]);
+    if (!user) {
+      setAssignees([]);
+      setAssigneesLoading(false);
+      return;
+    }
+    setAssigneesLoading(true);
+    void listAssignableUsers(user, project.category, project.id)
+      .then((members) =>
+        setAssignees(
+          members.map((m) => ({
+            uid: m.uid,
+            displayName: m.displayName,
+            email: m.email,
+          })),
+        ),
+      )
+      .catch((err) => {
+        console.warn("Could not load assignees:", err);
+        setAssignees([]);
+      })
+      .finally(() => setAssigneesLoading(false));
+  }, [project.id, project.category, user]);
 
   useEffect(() => {
     if (!selectedTask) return;
@@ -69,7 +97,7 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
       return;
     }
 
-    const assigneeChanged = "assigneeId" in patch;
+    const assigneeChanged = assigneeIdsChanged(patch);
     const datesChanged = "endDate" in patch || "startDate" in patch;
 
     await updateTask(project.id, taskId, patch);
@@ -80,8 +108,8 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
       const result = await notifyTaskAssignment({
         taskId,
         taskTitle: patch.title ?? previous.title,
-        assigneeId: patch.assigneeId ?? null,
-        previousAssigneeId: previous.assigneeId ?? null,
+        assigneeIds: patch.assigneeIds ?? previous.assigneeIds ?? [],
+        previousAssigneeIds: previous.assigneeIds ?? [],
         actor: user,
         project,
         previous,
@@ -134,17 +162,15 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
           <span className={`project-dot ${project.color}`} style={{ width: 16, height: 16 }} />
           <h1 className="project-title">{project.name}</h1>
         </div>
-        <div className="project-toolbar">
-          <button type="button" className="btn btn-with-icon" onClick={() => setShowInvite(true)}>
-            <IconUserPlus size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
-            Share / Invite
-          </button>
-        </div>
       </header>
 
       <div className="board-scroll">
-        {sections.length === 0 ? (
+        {!sectionsReady ? (
           <div className="empty-state">Loading sections…</div>
+        ) : sectionsError ? (
+          <div className="empty-state">{sectionsError}</div>
+        ) : sections.length === 0 ? (
+          <div className="empty-state">Setting up board…</div>
         ) : (
           <div className="board-columns">
             {sections.map((section) => (
@@ -153,6 +179,7 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
               section={section}
               tasks={tasks.filter((t) => t.sectionId === section.id)}
               assignees={assignees}
+              assigneesLoading={assigneesLoading}
               projectId={project.id}
               draggingTaskId={draggingTaskId}
               onDragStart={setDraggingTaskId}
@@ -173,6 +200,7 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
         <TaskDetailPanel
           task={selectedTask}
           assignees={assignees}
+          assigneesLoading={assigneesLoading}
           onClose={() => setSelectedTask(null)}
           onUpdate={(patch) => handleUpdateTask(selectedTask.id, patch)}
           onDelete={async () => {
@@ -182,16 +210,6 @@ export function ProjectBoard({ project }: ProjectBoardProps) {
         />
       )}
 
-      {showInvite && (
-        <InviteMemberModal
-          onClose={() => setShowInvite(false)}
-          onInvite={(email) =>
-            user
-              ? sendProjectInvite(project, email, user)
-              : Promise.resolve({ ok: false, message: "Not signed in." })
-          }
-        />
-      )}
     </>
   );
 }

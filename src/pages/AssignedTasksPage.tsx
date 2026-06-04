@@ -43,30 +43,36 @@ export function AssignedTasksPage({ projects }: AssignedTasksPageProps) {
   const assignedTasks = useMemo(() => {
     if (!user) return [];
     const all = Object.values(tasksByProject).flat();
-    return all.filter(
-      (task) => task.createdBy === user.uid && task.assigneeId && task.assigneeId !== user.uid,
-    );
+    return all.filter((task) => {
+      if (task.createdBy !== user.uid) return false;
+      const ids = task.assigneeIds ?? [];
+      return ids.some((id) => id !== user.uid);
+    });
   }, [tasksByProject, user]);
 
   const assigneeProgress = useMemo<AssigneeProgress[]>(() => {
     const grouped = new Map<string, AssigneeProgress>();
     for (const task of assignedTasks) {
-      const key = task.assigneeId ?? task.assigneeEmail ?? "unknown";
-      const label = task.assigneeName || task.assigneeEmail || "Unassigned";
-      const existing = grouped.get(key) ?? {
-        key,
-        label,
-        open: 0,
-        completed: 0,
-        total: 0,
-      };
-      existing.total += 1;
-      if (task.completed) existing.completed += 1;
-      else existing.open += 1;
-      grouped.set(key, existing);
+      const nameList = (task.assigneeName ?? "").split(", ").filter(Boolean);
+      const ids = task.assigneeIds ?? [];
+      ids.forEach((uid, index) => {
+        if (uid === user?.uid) return;
+        const label = nameList[index] ?? uid;
+        const existing = grouped.get(uid) ?? {
+          key: uid,
+          label,
+          open: 0,
+          completed: 0,
+          total: 0,
+        };
+        existing.total += 1;
+        if (task.completed) existing.completed += 1;
+        else existing.open += 1;
+        grouped.set(uid, existing);
+      });
     }
     return Array.from(grouped.values()).sort((a, b) => b.total - a.total);
-  }, [assignedTasks]);
+  }, [assignedTasks, user?.uid]);
 
   const stats = useMemo(() => {
     const total = assignedTasks.length;

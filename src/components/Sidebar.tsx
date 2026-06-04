@@ -17,9 +17,17 @@ import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
 import solvaDarkLogo from "@/assets/solva_dark_logo.webp";
 import solvaLightLogo from "@/assets/solva_light_logo.webp";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  departmentLabel,
+  formatUserFooter,
+  seesBothDepartmentGroups,
+} from "@/utils/userAccess";
 
 interface SidebarProps {
+  /** Projects visible in the sidebar (filtered by department for members). */
   projects: Project[];
+  /** Full project list (admins use this for Technology + Marketing groups). */
+  allProjects: Project[];
   homeView: HomeView;
   selectedProjectId: string | null;
   onSelectProject: (id: string) => void;
@@ -38,6 +46,7 @@ const iconProps = { size: ICON_SIZE.md, stroke: ICON_STROKE };
 
 export function Sidebar({
   projects,
+  allProjects,
   homeView,
   selectedProjectId,
   onSelectProject,
@@ -55,8 +64,17 @@ export function Sidebar({
   const { theme } = useTheme();
 
   const onProject = selectedProjectId !== null;
-  const technologyProjects = projects.filter((project) => project.category !== "marketing");
-  const marketingProjects = projects.filter((project) => project.category === "marketing");
+  const showBothGroups = user ? seesBothDepartmentGroups(user) : false;
+
+  const technologyProjects = (showBothGroups ? allProjects : projects).filter(
+    (project) => project.category !== "marketing",
+  );
+  const marketingProjects = (showBothGroups ? allProjects : projects).filter(
+    (project) => project.category === "marketing",
+  );
+
+  const memberDepartment = user?.department;
+  const singleDepartmentProjects = projects;
 
   async function handleDeleteProject(project: Project) {
     const confirmed = window.confirm(`Delete "${project.name}"? This cannot be undone.`);
@@ -92,6 +110,28 @@ export function Sidebar({
           <IconTrash size={ICON_SIZE.sm} stroke={ICON_STROKE} className="app-icon app-icon--sm" />
         </span>
       </button>
+    );
+  }
+
+  function renderProjectGroups() {
+    if (showBothGroups) {
+      return (
+        <>
+          <div className="sidebar-project-group-label">Technology</div>
+          {technologyProjects.map(renderProject)}
+          <div className="sidebar-project-group-label">Marketing</div>
+          {marketingProjects.map(renderProject)}
+        </>
+      );
+    }
+
+    if (!memberDepartment) return null;
+
+    return (
+      <>
+        <div className="sidebar-project-group-label">{departmentLabel(memberDepartment)}</div>
+        {singleDepartmentProjects.map(renderProject)}
+      </>
     );
   }
 
@@ -149,10 +189,7 @@ export function Sidebar({
       </button>
 
       <div className="sidebar-section-label">Projects</div>
-      <div className="sidebar-project-group-label">Technology</div>
-      {technologyProjects.map(renderProject)}
-      <div className="sidebar-project-group-label">Marketing</div>
-      {marketingProjects.map(renderProject)}
+      {renderProjectGroups()}
       <button type="button" className="sidebar-nav-item" onClick={onCreateProject}>
         <IconPlus {...iconProps} className="app-icon app-icon--md" />
         <span>New project</span>
@@ -162,7 +199,7 @@ export function Sidebar({
         <ThemeToggle className="sidebar-theme-toggle" />
         <div className="user-menu">
           <span className="user-menu-email" title={user?.email}>
-            {user?.displayName}
+            {user ? formatUserFooter(user) : ""}
           </span>
           <button
             type="button"

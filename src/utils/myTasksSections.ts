@@ -18,7 +18,7 @@ export const DEFAULT_MY_TASKS_SECTIONS: MyTasksSection[] = [
   },
   {
     id: PROJECT_MIRROR_IDS.DOING,
-    name: "Doing",
+    name: "Ongoing",
     order: 1,
     kind: "project",
     projectSlot: "doing",
@@ -45,7 +45,7 @@ export function myTaskPlacementKey(projectId: string, taskId: string): string {
 export function projectSectionNameToSlot(name: string): MyTasksSection["projectSlot"] {
   const n = name.toLowerCase().trim();
   if (n.includes("done")) return "done";
-  if (n.includes("doing") || n.includes("progress") || n.includes("in progress")) {
+  if (n.includes("ongoing") || n.includes("doing") || n.includes("progress") || n.includes("in progress")) {
     return "doing";
   }
   return "todo";
@@ -99,7 +99,7 @@ export function resolveMyTasksSectionId(
   return sectionIdFromProjectTask(task, sectionsByProject);
 }
 
-/** Fixed To do / Doing / Done first, then user-created custom sections. */
+/** Fixed To do / Ongoing / Done first, then user-created custom sections. */
 export function visibleMyTasksSections(sections: MyTasksSection[]): MyTasksSection[] {
   const custom = sections
     .filter((s) => s.kind === "custom" && !isFixedMyTasksSection(s.id))

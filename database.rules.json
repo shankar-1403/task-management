@@ -1,67 +1,109 @@
 {
   "rules": {
+    "config": {
+      "adminUids": {
+        ".read": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        "$uid": {
+          ".read": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+          ".write": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || (auth.uid == $uid && root.child('users').child(auth.uid).child('role').val() === 'admin'))"
+        }
+      }
+    },
     "users": {
+      ".read": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+      ".write": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
       "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child($uid).child('allDepartments').val() === true || (root.child('users').child(auth.uid).child('department').val() === root.child('users').child($uid).child('department').val() && root.child('users').child($uid).child('department').exists()))",
+        ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || (auth.uid == $uid && newData.exists()))"
+      }
+    },
+    "departmentUsers": {
+      "technology": {
+        ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'technology')",
+        "$uid": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'technology')",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || auth.uid == $uid)"
+        }
+      },
+      "marketing": {
+        ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'marketing')",
+        "$uid": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'marketing')",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || auth.uid == $uid)"
+        }
       }
     },
     "usersByEmail": {
+      ".read": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
       "$emailKey": {
-        ".read": "auth != null",
-        ".write": "auth != null && newData.val() === auth.uid"
-      }
-    },
-    "pendingInvites": {
-      "$emailKey": {
-        ".read": "auth != null && root.child('users').child(auth.uid).child('emailKey').val() === $emailKey",
-        "$projectId": {
-          ".read": "auth != null && root.child('users').child(auth.uid).child('emailKey').val() === $emailKey",
-          ".write": "auth != null && (root.child('userProjects').child(auth.uid).child($projectId).val() === true || root.child('users').child(auth.uid).child('emailKey').val() === $emailKey)"
-        }
+        ".read": "auth != null && (data.val() === auth.uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
+        ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || (newData.exists() && newData.val() === auth.uid))"
       }
     },
     "notifications": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
+        ".read": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
+        ".write": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
         "$notifId": {
-          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && newData.child('fromUserId').val() === auth.uid && newData.child('toUserId').val() === $uid && (newData.child('type').val() === 'task_assigned' || newData.child('type').val() === 'task_priority')))"
+          ".write": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || (!data.exists() && newData.child('fromUserId').val() === auth.uid && newData.child('toUserId').val() === $uid && (newData.child('type').val() === 'task_assigned' || newData.child('type').val() === 'task_priority')))"
         }
       }
     },
     "myTasksLayout": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
+        ".write": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))"
+      }
+    },
+    "departmentProjects": {
+      "technology": {
+        ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'technology' || root.child('departmentUsers').child('technology').child(auth.uid).val() === true)",
+        "$projectId": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'technology' || root.child('departmentUsers').child('technology').child(auth.uid).val() === true)",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('department').val() === 'technology' || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('departmentUsers').child('technology').child(auth.uid).val() === true)"
+        }
+      },
+      "marketing": {
+        ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'marketing' || root.child('departmentUsers').child('marketing').child(auth.uid).val() === true)",
+        "$projectId": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === 'marketing' || root.child('departmentUsers').child('marketing').child(auth.uid).val() === true)",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('department').val() === 'marketing' || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('departmentUsers').child('marketing').child(auth.uid).val() === true)"
+        }
       }
     },
     "userProjects": {
+      ".read": "auth != null && (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
+        ".read": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
+        ".write": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin'))",
         "$projectId": {
-          ".write": "auth != null && (auth.uid == $uid || root.child('userProjects').child(auth.uid).child($projectId).val() === true)"
+          ".write": "auth != null && (auth.uid == $uid || (root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || (!newData.exists() && (root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())))"
         }
       }
     },
     "projects": {
       "$projectId": {
-        ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
-        ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : root.child('userProjects').child(auth.uid).child($projectId).val() === true)",
+        ".read": "auth != null && data.exists() && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === data.child('category').val() || root.child('departmentUsers').child(data.child('category').val()).child(auth.uid).val() === true)",
+        ".write": "auth != null && (!data.exists() ? (newData.child('ownerId').val() === auth.uid && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || newData.child('category').val() === root.child('users').child(auth.uid).child('department').val() || root.child('departmentUsers').child(newData.child('category').val()).child(auth.uid).val() === true)) : ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === data.child('category').val() || root.child('departmentUsers').child(data.child('category').val()).child(auth.uid).val() === true))",
         "memberIds": {
           "$memberUid": {
-            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
+            ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())"
           }
         },
         "sections": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
           "$sectionId": {
-            ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
-            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
+            ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
+            ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())"
           }
         },
         "tasks": {
+          ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
+          ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
           "$taskId": {
-            ".read": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true",
-            ".write": "auth != null && root.child('userProjects').child(auth.uid).child($projectId).val() === true"
+            ".read": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())",
+            ".write": "auth != null && ((root.child('config/adminUids').child(auth.uid).val() === true || root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('users').child(auth.uid).child('allDepartments').val() === true || root.child('users').child(auth.uid).child('department').val() === root.child('projects').child($projectId).child('category').val())"
           }
         }
       }

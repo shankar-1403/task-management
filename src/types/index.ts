@@ -11,11 +11,20 @@ export type ProjectColor =
 
 export type ProjectCategory = "technology" | "marketing";
 
+export type UserDepartment = ProjectCategory;
+
+export type UserRole = "admin" | "management" | "member";
+
 export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
   photoURL?: string;
+  role: UserRole;
+  /** Null for administrators. Required for members; optional when management has all departments. */
+  department: UserDepartment | null;
+  /** When true (set by admin), user sees Technology and Marketing projects. Admins always have full access. */
+  allDepartments: boolean;
 }
 
 export interface Project {
@@ -42,6 +51,8 @@ export interface Task {
   title: string;
   description: string;
   completed: boolean;
+  /** All assignees (primary source). Legacy assigneeId is the first assignee. */
+  assigneeIds: string[];
   assigneeId: string | null;
   assigneeName: string | null;
   assigneeEmail: string | null;
@@ -69,7 +80,7 @@ export interface MyTasksSection {
   name: string;
   order: number;
   kind: MyTasksSectionKind;
-  /** Matches project board columns (To do / Doing / Done). */
+  /** Matches project board columns (To do / Ongoing / Done). */
   projectSlot?: MyTasksProjectSlot;
 }
 

@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { IconTrash, IconX } from "@tabler/icons-react";
 import type { AssigneeOption, Task } from "@/types";
 import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
+import { AssigneeMultiSelect } from "@/components/AssigneeMultiSelect";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { TaskDateFields } from "@/components/TaskDateFields";
+import { buildAssigneePatch } from "@/utils/taskAssignees";
 
 interface TaskDetailPanelProps {
   task: Task;
   assignees: AssigneeOption[];
+  assigneesLoading?: boolean;
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -16,6 +19,7 @@ interface TaskDetailPanelProps {
 export function TaskDetailPanel({
   task,
   assignees,
+  assigneesLoading = false,
   onClose,
   onUpdate,
   onDelete,
@@ -60,27 +64,13 @@ export function TaskDetailPanel({
         </header>
         <div className="detail-body">
           <div className="detail-field">
-            <span className="detail-label">Assignee</span>
-            <select
-              className="detail-select"
-              value={task.assigneeId ?? ""}
-              onChange={(e) => {
-                const uid = e.target.value || null;
-                const member = assignees.find((a) => a.uid === uid);
-                void onUpdate({
-                  assigneeId: uid,
-                  assigneeName: member?.displayName ?? null,
-                  assigneeEmail: member?.email ?? null,
-                });
-              }}
-            >
-              <option value="">Unassigned</option>
-              {assignees.map((a) => (
-                <option key={a.uid} value={a.uid}>
-                  {a.displayName} ({a.email})
-                </option>
-              ))}
-            </select>
+            <span className="detail-label">Assignees</span>
+            <AssigneeMultiSelect
+              loading={assigneesLoading}
+              options={assignees}
+              selectedIds={task.assigneeIds ?? []}
+              onChange={(ids) => void onUpdate(buildAssigneePatch(ids, assignees))}
+            />
           </div>
 
           <div className="detail-field">

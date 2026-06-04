@@ -1,1 +1,1 @@
-export type HomeView = "dashboard" | "calendar" | "myTasks" | "assignedByMe";
+export type HomeView = "dashboard" | "calendar" | "myTasks" | "assignedByMe" | "admin";

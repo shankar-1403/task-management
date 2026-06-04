@@ -22,7 +22,7 @@ if (missing.length > 0) {
   );
 }
 
-const firebaseConfig: FirebaseOptions = {
+export const firebaseConfig: FirebaseOptions = {
   apiKey: env("VITE_FIREBASE_API_KEY"),
   authDomain: env("VITE_FIREBASE_AUTH_DOMAIN"),
   projectId: env("VITE_FIREBASE_PROJECT_ID"),

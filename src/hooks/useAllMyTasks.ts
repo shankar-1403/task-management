@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Project, Task } from "@/types";
 import { subscribeTasks } from "@/services/database";
 import { sortTasksByPriority } from "@/utils/priority";
+import { taskIsAssignedTo } from "@/utils/taskAssignees";
 
 export function useAllMyTasks(projects: Project[], userId: string | undefined) {
   const [tasksByProject, setTasksByProject] = useState<Record<string, Task[]>>({});
@@ -21,7 +22,9 @@ export function useAllMyTasks(projects: Project[], userId: string | undefined) {
 
   const myTasks = useMemo(() => {
     const combined = Object.values(tasksByProject).flat();
-    return sortTasksByPriority(combined.filter((t) => t.assigneeId === userId));
+    return sortTasksByPriority(
+      combined.filter((t) => userId && taskIsAssignedTo(t, userId)),
+    );
   }, [tasksByProject, userId]);
 
   return { myTasks, tasksByProject };

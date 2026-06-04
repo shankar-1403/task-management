@@ -2,7 +2,9 @@ import { useState, type DragEvent } from "react";
 import { IconCheck, IconPlus } from "@tabler/icons-react";
 import type { AssigneeOption, Section, Task } from "@/types";
 import { ICON_SIZE, ICON_STROKE } from "@/components/ui/iconProps";
+import { AssigneeMultiSelect } from "@/components/AssigneeMultiSelect";
 import { initials } from "@/utils/avatar";
+import { buildAssigneePatch, formatAssigneeSummary } from "@/utils/taskAssignees";
 import { getTaskDragId, setTaskDragData } from "@/utils/moveTask";
 import { getTaskPriority } from "@/utils/priority";
 import { createTask } from "@/services/database";
@@ -14,6 +16,7 @@ interface SectionBlockProps {
   section: Section;
   tasks: Task[];
   assignees: AssigneeOption[];
+  assigneesLoading?: boolean;
   projectId: string;
   draggingTaskId: string | null;
   onDragStart: (taskId: string) => void;
@@ -26,7 +29,9 @@ interface SectionBlockProps {
 
 function isInteractiveDragTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  return !!target.closest("button, select, input, textarea, a, option, label");
+  return !!target.closest(
+    "button, select, input, textarea, a, option, label, .assignee-multi",
+  );
 }
 
 function startTaskDrag(e: DragEvent, taskId: string, onDragStart: (id: string) => void): void {
@@ -45,6 +50,7 @@ export function SectionBlock({
   section,
   tasks,
   assignees,
+  assigneesLoading = false,
   projectId,
   draggingTaskId,
   onDragStart,
@@ -71,6 +77,7 @@ export function SectionBlock({
         title,
         description: "",
         completed: false,
+        assigneeIds: [],
         assigneeId: null,
         assigneeName: null,
         assigneeEmail: null,
@@ -166,33 +173,23 @@ export function SectionBlock({
                     size="compact"
                     onChange={(patch) => void onUpdateTask(task.id, patch)}
                   />
-                  <select
-                    className="task-card-select"
-                    value={task.assigneeId ?? ""}
-                    onChange={(e) => {
-                      const uid = e.target.value || null;
-                      const member = assignees.find((a) => a.uid === uid);
-                      void onUpdateTask(task.id, {
-                        assigneeId: uid,
-                        assigneeName: member?.displayName ?? null,
-                        assigneeEmail: member?.email ?? null,
-                      });
-                    }}
-                    aria-label="Assignee"
-                  >
-                    <option value="">Assign</option>
-                    {assignees.map((a) => (
-                      <option key={a.uid} value={a.uid}>
-                        {a.displayName}
-                      </option>
-                    ))}
-                  </select>
-                  {task.assigneeName && (
+                  <AssigneeMultiSelect
+                    compact
+                    loading={assigneesLoading}
+                    options={assignees}
+                    selectedIds={task.assigneeIds ?? []}
+                    onChange={(ids) =>
+                      void onUpdateTask(task.id, buildAssigneePatch(ids, assignees))
+                    }
+                  />
+                  {(task.assigneeIds?.length ?? 0) > 0 && (
                     <div className="task-card-assignee">
-                      <span className="avatar" title={task.assigneeName}>
-                        {initials(task.assigneeName)}
+                      <span className="avatar" title={task.assigneeName ?? ""}>
+                        {initials(formatAssigneeSummary(task) || "?")}
                       </span>
-                      <span className="task-card-assignee-name">{task.assigneeName}</span>
+                      <span className="task-card-assignee-name">
+                        {formatAssigneeSummary(task)}
+                      </span>
                     </div>
                   )}
                 </div>
